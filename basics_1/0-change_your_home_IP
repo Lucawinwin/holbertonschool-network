@@ -1,15 +1,55 @@
-#!/usr/bin/env bash
-# This script configures the /etc/hosts file to resolve localhost to 127.0.0.2 and facebook.com to 8.8.8.8
+#!/bin/bash
 
-# Backup the original /etc/hosts file
-sudo cp /etc/hosts /etc/hosts.bak
+# Ubuntu Server Configuration Script
+# This script modifies hostname resolution settings to meet the following requirements:
+# - localhost resolves to 127.0.0.2
+# - facebook.com resolves to 8.8.8.8
 
-# Remove any existing localhost and facebook.com entries
-sudo sed -i '/127.0.0.1\s*localhost/d' /etc/hosts
-sudo sed -i '/facebook.com/d' /etc/hosts
+# Exit immediately if a command exits with a non-zero status
+set -e
 
-# Add new entries for localhost and facebook.com
-echo "127.0.0.2 localhost" | sudo tee -a /etc/hosts > /dev/null
-echo "8.8.8.8 facebook.com" | sudo tee -a /etc/hosts > /dev/null
+# Check if script is run as root
+if [ "$(id -u)" -ne 0 ]; then
+    echo "Error: This script must be run as root. Try using sudo."
+    exit 1
+fi
 
-echo "Host resolution updated: localhost -> 127.0.0.2, facebook.com -> 8.8.8.8"
+echo "Starting server configuration..."
+
+# Backup the hosts file
+TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
+HOSTS_BACKUP="/etc/hosts.backup-${TIMESTAMP}"
+echo "Backing up current /etc/hosts file to $HOSTS_BACKUP"
+cp /etc/hosts "$HOSTS_BACKUP"
+
+# Update the hosts file
+echo "Updating /etc/hosts file..."
+# Create a new hosts file with our custom entries
+cat > /etc/hosts << EOF
+127.0.0.2   localhost
+127.0.1.1   $(hostname)
+8.8.8.8     facebook.com
+
+# The following lines are desirable for IPv6 capable hosts
+::1         ip6-localhost ip6-loopback
+fe00::0     ip6-localnet
+ff00::0     ip6-mcastprefix
+ff02::1     ip6-allnodes
+ff02::2     ip6-allrouters
+EOF
+
+echo "Hosts file updated successfully."
+
+# Test the changes
+echo "Testing the new configuration..."
+echo "Resolving localhost:"
+ping -c 1 localhost || echo "Ping to localhost failed, but configuration might still be correct."
+
+echo "Resolving facebook.com:"
+ping -c 1 facebook.com || echo "Ping to facebook.com failed, but configuration might still be correct."
+
+echo "Displaying current hosts file:"
+cat /etc/hosts
+
+echo "Configuration complete!"
+echo "Original hosts file backed up to $HOSTS_BACKUP"
